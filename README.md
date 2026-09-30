@@ -1,5 +1,10 @@
 # ML Creator Research Engine
 
+<p align="center">
+  <img src="docs/ML.png" alt="ML Creator: Feature & Model Structure Research Pipeline" width="100%">
+
+</p>
+
 ML Creator is a bounded, source-linked research engine for discovering **machine-learning feature ideas** and **model architectures** before a dataset is available.
 
 It is designed for questions such as:

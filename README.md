@@ -1,7 +1,7 @@
 # ML Creator Research Engine
 
 <p align="center">
-  <img src="docs/ML.png" alt="ML Creator: Feature & Model Structure Research Pipeline" width="100%">
+  <img src="ML.png" alt="ML Creator: Feature & Model Structure Research Pipeline" width="100%">
 
 </p>
 

@@ -1,0 +1,18 @@
+{
+  "problem": {
+    "task": "Machine Learning Trading",
+    "entity": "Forext Market",
+    "horizon_days": "no-horizon"
+  },
+  "intent": {
+    "mode": "STRUCTURES",
+    "data_state": "NO_DATA"
+  },
+  "research": {
+    "requested_features": 0,
+    "requested_model_structures": 100,
+    "sources": ["REPOS"],
+    "max_rounds": 20,
+    "max_feature_rounds": 5
+  }
+}

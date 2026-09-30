@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ml-creator-research-engine"
+version = "0.1.0"
+description = "Deterministic foundation for feature and structure research"
+requires-python = ">=3.10"
+
+[project.scripts]
+ml-creator = "ml_creator.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

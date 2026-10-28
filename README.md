@@ -1,185 +1,192 @@
-# ML Creator Research Engine
+# ML Creator — Agentic ML Research Engine
 
 <p align="center">
-  <img src="ML.png" alt="ML Creator: Feature & Model Structure Research Pipeline" width="100%">
-
+  <img src="ML.png" alt="ML Creator agentic research workflow" width="100%">
 </p>
 
-ML Creator is a bounded, source-linked research engine for discovering **machine-learning feature ideas** and **model architectures** before a dataset is available.
+**ML Creator is an agent-driven research engine that iteratively discovers, critiques, and curates machine-learning feature ideas and model architectures — even before a dataset exists.**
 
-It is designed for questions such as:
+Rather than producing a one-shot list of generic suggestions, ML Creator coordinates specialized **LLM agent roles** with targeted web search, source constraints, an independent structure-admission review, and feedback-driven research rounds.
 
-- What feature families should I investigate for this prediction problem?
-- What model architectures or hybrid structures are worth testing?
-- What data would I need to evaluate these ideas later?
+> **Current scope:** This is a bounded **NO_DATA research agent**, not an AutoML training system. It proposes source-linked research hypotheses; it does not train models or demonstrate performance improvements.
 
-The current CLI is intentionally a **NO_DATA research system**. It generates research proposals; it does **not** claim measured lift, a best model, production readiness, or empirical superiority.
-
-## How it works
+## Agent architecture
 
 ```text
-Problem
-  ↓
-Search Planner
-  ↓
-Targeted web queries
-  ↓
-SearXNG
-  ├── Kaggle
-  ├── Papers
-  └── Repositories
-  ↓
-Source-linked snippets
-  ↓
-Candidate Generator
-  ↓
-Validation / Admission Review
-  ↓
-Critic identifies gaps
-  ↓
-Next research round
-  ↓
-TARGET_REACHED | LOW_NOVELTY | MAX_ROUNDS
+                         Problem + research intent
+                                   |
+                         Agent orchestration loop
+                                   |
+                        +----------v-----------+
+                        |  Search Planner Agent |
+                        |  queries informed by  |
+                        |  previous gaps        |
+                        +----------+-----------+
+                                   |
+                        +----------v-----------+
+                        | SearXNG Search Tool   |
+                        | Kaggle / Papers /     |
+                        | Code Repositories     |
+                        +----------+-----------+
+                                   |
+                        +----------v-----------+
+                        | Candidate Generator   |
+                        | feature concepts or   |
+                        | model architectures   |
+                        +----------+-----------+
+                                   |
+                        +----------v-----------+
+                        | Deterministic Gates   |
+                        | schema, URL, IDs and  |
+                        | duplicate checks      |
+                        +----------+-----------+
+                                   |
+                 STRUCTURES only:  v
+                        +----------------------+
+                        | Independent Admission|
+                        | Reviewer (LLM)       |
+                        | architecture, novelty|
+                        | and snippet support  |
+                        +----------+-----------+
+                                   |
+                        +----------v-----------+
+                        | Research Critic Agent |
+                        | coverage / missing    |
+                        | mechanisms or families|
+                        +----------+-----------+
+                                   |
+                       gaps + accepted discoveries
+                                   |
+                    next round or bounded termination
+                                   |
+                   TARGET_REACHED / LOW_NOVELTY /
+                            MAX_ROUNDS
 ```
 
-The loop is bounded. Each round uses previous discoveries and unresolved gaps to search for additional candidates instead of repeatedly asking for the same ideas.
+The **planner, candidate generator, and critic** are prompt-defined roles invoked by the research orchestration code. The **admission reviewer** is an additional LLM gate for model structures; it can use a separately configured endpoint. This is a **sequential, iterative agent workflow**, not a claim of autonomous parallel agents or a general-purpose agent framework.
 
-## Research modes
+## Specialized agent roles
 
-ML Creator supports three modes:
+| Agent / component | Responsibility | How the result is used |
+| --- | --- | --- |
+| **Search Planner Agent** | Generates two focused queries per round using the problem, accepted discoveries and gaps identified by the critic | Guides source retrieval toward underexplored ideas |
+| **Search Tool (SearXNG)** | Retrieves source-linked snippets from selected Kaggle, paper and repository domains | Supplies a constrained evidence pool |
+| **Candidate Generator** | Produces structured feature concepts or connected model architectures from retrieved snippets | Proposes new research hypotheses |
+| **Deterministic Validation** | Checks required fields, source URLs, exact IDs/names, and valid candidate structure | Rejects malformed, unsupported or repeat submissions |
+| **Independent Structure Admission Reviewer** | Assesses whether a candidate is a real architecture, semantically new, and supported by supplied snippets | Accepts or rejects model-structure proposals |
+| **Research Critic Agent** | Identifies missing feature mechanisms or architecture families after each round | Feeds gaps into the next planning cycle |
+| **Research Orchestrator** | Tracks accepted proposals, round logs, checkpoints and stopping conditions | Produces bounded, auditable output |
 
-| Mode | Purpose |
-| --- | --- |
-| `FEATURES` | Discover feature concepts, mechanisms, required information, and typical formulations |
-| `STRUCTURES` | Discover complete model architectures, hybrids, stacks, and modeling strategies |
-| `BOTH` | Run feature and structure research in the same job |
+### How agents collaborate
 
-The core contracts also define `DATA_AVAILABLE`, but the current CLI rejects data-backed runs until a dataset adapter and mapping layer are implemented.
+1. **Plan:** The planner uses the prediction problem, existing candidates and unresolved gaps to create targeted search queries.
+2. **Retrieve:** SearXNG returns snippets; configured source categories restrict the candidate evidence.
+3. **Generate:** The generator emits structured JSON proposals that cite URLs returned in the current search round.
+4. **Validate:** Python checks proposal shape, source membership and duplicate identifiers. In **STRUCTURES** mode, an independent LLM reviewer also evaluates architectural validity, semantic novelty and source support.
+5. **Critique:** A critic identifies missing research areas and supplies feedback to the next planner call.
+6. **Stop:** The orchestrator ends when the requested number is reached, two consecutive rounds add no accepted candidates, or the configured round limit is reached.
 
-## Feature research
+The agent loop does not execute notebooks, inspect full repositories, evaluate fitted models, or perform a dataset-specific feasibility assessment.
 
-Feature discovery uses an iterative planner → search → generator → critic loop.
+## Why this is agentic
 
-Each accepted `ResearchFeature` contains:
+- **Goal-directed planning:** Search queries depend on the task and research progress, not only static keywords.
+- **Tool use:** The workflow invokes web search through SearXNG to gather outside evidence.
+- **Feedback loops:** Critic findings change the next research round.
+- **Specialized review:** A distinct admission decision checks model structures before they enter the accepted collection.
+- **Bounded autonomy:** Explicit maximum rounds, requested counts and low-novelty stopping rules keep the process finite.
+- **Inspectable decisions:** Outputs include source URLs, round-level logs and structure admission decisions.
+
+**Important distinction:** Semantic novelty and source-support judgments are LLM-assisted assessments, not formal proof of originality or factual correctness. The reviewer may run on the same model as the proposer unless separate reviewer configuration is supplied.
+
+## Two research agents
+
+### Feature Research Agent — `FEATURES`
+
+Discovers candidate predictive mechanisms, feature families, required information and typical formulations.
+
+Each accepted feature records:
 
 ```text
-concept_id
-name
-concept_family
-mechanism
-required_information
-typical_formula
-source_ids
-similar_problems
+concept_id · name · concept_family · mechanism
+required_information · typical_formula · source_ids · similar_problems
 ```
 
-Candidates must cite URLs returned by the current search round. Unsupported source URLs and duplicate concept IDs are rejected.
+The feature loop uses a planner, source search, generator, deterministic checks and critic. It rejects source URLs outside the retrieved evidence pool and duplicate normalized concept IDs. There is **no separate LLM admission reviewer for features** in the current implementation.
 
-The critic then identifies missing feature families or predictive mechanisms and feeds those gaps into the next search round.
+### Model Structure Research Agent — `STRUCTURES`
 
-## Structure research
+Discovers architecture designs such as hybrids, stacks, ensembles and interconnected model components. For each candidate, its additional admission reviewer asks:
 
-Structure discovery is stricter than feature discovery.
+- Does the proposal describe an actual **model architecture**, rather than only a training or validation procedure?
+- Is it **semantically distinct** from architectures already accepted?
+- Does the snippet evidence offer **DIRECT**, **ADAPTED**, or **NONE** support?
+- What canonical architecture description should represent this design?
+
+Only candidates satisfying the reviewer gate and deterministic deduplication rules are accepted. For example, different names for the same XGBoost–LSTM connection should not automatically count as novel architectures.
+
+Accepted structure records include:
 
 ```text
-Planner
-  ↓
-Search
-  ↓
-Structure Generator
-  ↓
-Basic deterministic checks
-  ↓
-Independent Admission Reviewer
-  ├── Is this actually a model structure?
-  ├── Is it semantically new?
-  ├── Is source support DIRECT / ADAPTED / NONE?
-  └── What is its canonical architecture?
-  ↓
-Accept / Reject
-  ↓
-Critic finds missing architecture families
+name · problem_type · architecture · components · rationale
+assumptions · required_data_properties · training_protocol
+validation_protocol · strengths · risks · sources
+canonical_structure · reviewer_reason
 ```
 
-This prevents the result set from filling with renamed versions of the same architecture. For example, `XGBoost + LSTM` and `LSTM/XGBoost hybrid` can be recognized as the same canonical structure.
+### Combined research — `BOTH`
 
-A structure proposal includes:
+Runs feature and structure research in the same job, with separate round records and agent results. It is not a jointly optimized feature–architecture selection process.
 
-```text
-name
-problem_type
-architecture
-components
-rationale
-assumptions
-required_data_properties
-training_protocol
-validation_protocol
-strengths
-risks
-sources
-canonical_structure
-reviewer_reason
-```
+## Evidence and trust boundaries
 
-## Evidence level
+All current research evidence is labeled **`SNIPPET_ONLY`**. Candidate citations are restricted to URLs returned by the current search, and retrieved snippets are treated as untrusted evidence rather than instructions.
 
-Current research evidence is explicitly labeled:
+This means:
 
-```text
-SNIPPET_ONLY
-```
+- A cited link is **not** proof that an entire paper, repository or notebook was examined.
+- **DIRECT** and **ADAPTED** are reviewer judgments about snippet-level support, not independently reproduced results.
+- Neither feature usefulness nor architecture superiority is empirically established.
+- No dataset, schema, columns, fitted model, accuracy improvement or production readiness is inferred.
 
-The engine validates source domains and links candidates to returned search results, but it does not yet perform deep repository inspection, full-paper review, notebook execution, or empirical reproduction.
+**Research discovers what may be worth testing. Data determines applicability. Experiments establish what actually works.**
 
-Treat outputs as **research hypotheses to test**, not verified results.
+## Quick start
 
-## Search sources
-
-Research can be restricted to any combination of:
-
-```text
-KAGGLE
-PAPERS
-REPOS
-```
-
-Examples include Kaggle, arXiv/OpenReview/JMLR and other research hosts, plus GitHub/GitLab/Hugging Face and similar repository hosts.
-
-Search is performed through SearXNG.
-
-## Install
-
-Requires Python 3.10+.
+Requires **Python 3.10+** and an accessible **SearXNG** instance.
 
 ```bash
+git clone https://github.com/meisamgh/ml-creator-research-engine.git
+cd ml-creator-research-engine
 python3 -m pip install -e .
 cp .env.example .env
 ```
 
-Configure the generator and search provider in `.env`:
+Set the generator endpoint and search service in `.env`:
 
 ```env
-JUSTWOKER_API_KEY=...
-JUSTWOKER_BASE_URL=...
-JUSTWOKER_MODEL=...
-SEARXNG_URL=...
+JUSTWOKER_API_KEY=your-api-key
+JUSTWOKER_BASE_URL=https://your-anthropic-compatible-endpoint.example
+JUSTWOKER_MODEL=your-model
+SEARXNG_URL=http://localhost:8080
 ```
 
-Structure admission can use a separate reviewer model:
+Optionally configure the **structure admission reviewer** with a separate endpoint:
 
 ```env
-REVIEW_API_KEY=...
-REVIEW_BASE_URL=...
-REVIEW_MODEL=...
+REVIEW_API_KEY=your-review-api-key
+REVIEW_BASE_URL=https://your-review-provider.example
+REVIEW_MODEL=your-review-model
 REVIEW_API_PROTOCOL=anthropic
 ```
 
-If no separate reviewer is configured, the reviewer falls back to the configured JustWoker endpoint.
+If reviewer overrides are omitted, the review uses the configured JustWoker endpoint in a separate call. A separate model can improve reviewer independence, but is not required.
 
-## Run
+## Run the research agents
 
-### Find model structures
+Use `run.json` as the baseline configuration. CLI options override relevant fields.
+
+**Research architectures:**
 
 ```bash
 ml-creator --config run.json \
@@ -189,7 +196,7 @@ ml-creator --config run.json \
   --output structures.json
 ```
 
-### Find features
+**Research feature ideas:**
 
 ```bash
 ml-creator --config run.json \
@@ -198,7 +205,7 @@ ml-creator --config run.json \
   --output features.json
 ```
 
-### Find both
+**Run both research workflows:**
 
 ```bash
 ml-creator --config run.json \
@@ -208,7 +215,7 @@ ml-creator --config run.json \
   --output blueprint.json
 ```
 
-You can override the prediction problem at runtime:
+**Customize the prediction problem:**
 
 ```bash
 ml-creator --config run.json \
@@ -217,86 +224,69 @@ ml-creator --config run.json \
   --horizon-days 30
 ```
 
-For problems without a meaningful fixed prediction horizon:
+For tasks without a fixed horizon:
 
 ```bash
 ml-creator --config run.json --no-horizon
 ```
 
-## Large searches
+Source categories are `KAGGLE`, `PAPERS`, and `REPOS`. Search covers hosts including Kaggle, arXiv/OpenReview, GitHub/GitLab and related approved domains via SearXNG.
 
-Structure research supports up to 100 requested structures and up to 20 rounds.
+## Agent controls and stopping behavior
 
-Each round generates at most five new candidates, reviews them, records accepted/rejected proposals, asks a critic what architecture families are still missing, and uses those gaps in the next planner step.
+| Control | Current behavior |
+| --- | --- |
+| `FEATURES` count | 1–10 requested concepts |
+| `FEATURES` rounds | 1–10 rounds |
+| `STRUCTURES` count | 1–100 requested architectures |
+| `STRUCTURES` rounds | 1–20 rounds |
+| Candidates per round | Up to 5 new proposals |
+| `TARGET_REACHED` | Enough candidates were accepted |
+| `LOW_NOVELTY` | Two consecutive rounds accepted no new candidates |
+| `MAX_ROUNDS` | Configured search budget was exhausted |
 
-A run stops when:
+Increasing target counts does not guarantee that enough well-supported, distinct proposals will be found.
 
-```text
-TARGET_REACHED
-LOW_NOVELTY
-MAX_ROUNDS
-```
+## Outputs, checkpoints, and traceability
 
-`LOW_NOVELTY` is triggered after repeated rounds fail to produce accepted new candidates.
+Each run produces a JSON research artifact containing the problem, run intent, accepted proposals, selected source categories, evidence level, research rounds, stop reason and artifact hash. Agent records also capture the search queries, retrieved source URLs, accepted names, rejection counts and critic feedback. Structure rounds additionally contain admission-review decisions.
 
-## Checkpoints and outputs
-
-When `--output` is provided, the CLI writes an intermediate checkpoint after each research round.
+When `--output` is supplied, a checkpoint is written after each completed round:
 
 ```text
 <output>.checkpoint.json
 ```
 
-The checkpoint is an audit snapshot, not a resumable execution state. The final JSON artifact is written atomically so a failed write does not corrupt the previous result.
+This is an **audit snapshot, not an execution-resume feature**. Final JSON files are written atomically.
 
-Generated artifacts include:
-
-- problem and run intent
-- accepted feature or structure proposals
-- research rounds
-- stop reason
-- selected source categories
-- evidence level
-- research artifact hash
-
-## Deterministic evaluation foundation
-
-The repository also contains the beginning of the future data-backed evaluation spine:
+## Code map
 
 ```text
-PredictionEvent
-bitemporal fact eligibility
-FeatureSpec compilation
-FitGuard
-time-ordered OOF evaluation
-portfolio freeze
-sealed holdout
+src/ml_creator/
+├── __main__.py    # CLI, orchestration, configuration, output/checkpoints
+├── research.py    # planner/generator/critic, SearXNG tool, admission reviewer
+├── core.py        # research contracts and deterministic feature foundation
+└── evaluation.py  # chronological evaluation helpers (not CLI-integrated)
+
+tests/
+├── test_research.py
+└── test_core.py
 ```
 
-A fact is usable only when it was both valid and known by prediction time:
+The repository also includes `feature_scout.py`, a legacy standalone script outside the current CLI. `INSTRUCTOR.md` describes the broader target architecture and should be understood as a roadmap, not a list of already implemented agents.
+
+### Future direction: from research agents to evaluation
+
+A deterministic dataset-backed foundation exists in code, including `PredictionEvent`, bitemporal fact eligibility, `FeatureSpec` compilation, `FitGuard`, time-ordered out-of-fold evaluation, portfolio freeze and sealed holdout concepts.
+
+Data eligibility requires both:
 
 ```text
 valid_ts <= as_of_ts
 knowledge_ts <= as_of_ts
 ```
 
-`FitGuard` prevents fitting operations from touching validation or holdout rows.
-
-These components are groundwork for future dataset-backed evaluation. They are **not yet wired into the current `ml-creator` CLI**.
-
-## Current repository structure
-
-```text
-src/ml_creator/
-├── __main__.py      # CLI, configuration, orchestration, checkpoints
-├── core.py          # contracts and deterministic feature foundation
-├── research.py      # search, planning, generation, critique, structure review
-└── evaluation.py    # deterministic chronological evaluation helpers
-```
-
-`feature_scout.py` is a legacy standalone script and is not used by the `ml-creator` CLI.
-
-`INSTRUCTOR.md` describes the larger target architecture and milestone plan. It should be read as a roadmap rather than the current module layout.
+These foundations are **not yet connected to the active agent CLI**. The CLI currently rejects `DATA_AVAILABLE` runs until a dataset adapter and mapping layer exist.
 
 ## Tests
 
@@ -304,10 +294,8 @@ src/ml_creator/
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 ```
 
-Tests cover mode routing, source validation, retries, optional horizons, iterative research, large bounded searches, structure admission, duplicate rejection, and deterministic core behavior.
+The tests cover research modes, source validation, iterative rounds, bounded stopping, structure admission, duplicate handling, and deterministic foundations.
 
-## Design principle
+---
 
-> **Research discovers what may be worth testing. Data determines whether it is applicable. Experiments determine whether it actually works.**
-
-No dataset is required for research. A dataset is required for empirical claims.
+**ML Creator's focus is agentic research discovery — finding diverse, source-linked ideas and documenting why they were proposed — before committing to data collection, model implementation or empirical evaluation.**
